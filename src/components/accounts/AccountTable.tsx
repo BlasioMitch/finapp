@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,7 +13,9 @@ import {
   SortingState,
   VisibilityState,
 } from '@tanstack/react-table';
-import { useState, useRef, useEffect } from 'react';
+import { useDataStore } from '@/store/dataStore';
+import { Account } from '@/types';
+import accountService from '@/services/account.service';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -23,169 +26,111 @@ import {
   EyeSlashIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 
-type Account = {
-  id: string;
-  accountNumber: string;
-  accountType: 'Savings' | 'Checking' | 'Investment';
-  balance: number;
-  status: 'active' | 'inactive';
-  owner: {
-    id: string;
-    name: string;
-    role: 'admin' | 'manager' | 'user';
-  };
-  createdAt: string;
-  lastTransaction: string;
-};
-
-const sampleAccounts: Account[] = [
-  {
-    id: '1',
-    accountNumber: 'ACC-001',
-    accountType: 'Savings',
-    balance: 50000,
-    status: 'active',
-    owner: {
-      id: '1',
-      name: 'John Doe',
-      role: 'admin',
-    },
-    createdAt: '2023-01-15',
-    lastTransaction: '2024-03-15',
-  },
-  {
-    id: '2',
-    accountNumber: 'ACC-002',
-    accountType: 'Checking',
-    balance: 25000,
-    status: 'active',
-    owner: {
-      id: '2',
-      name: 'Jane Smith',
-      role: 'manager',
-    },
-    createdAt: '2023-02-20',
-    lastTransaction: '2024-03-14',
-  },
-  // Add more sample accounts as needed
-];
-
-const columns: ColumnDef<Account>[] = [
-  {
-    accessorKey: 'accountNumber',
-    header: 'Account Number',
-  },
-  {
-    accessorKey: 'accountType',
-    header: 'Type',
-  },
-  {
-    accessorKey: 'balance',
-    header: 'Balance',
-    cell: ({ row }) => (
-      <span className="font-medium">
-        ${row.original.balance.toLocaleString()}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-semibold ${
-          row.original.status === 'active'
-            ? 'bg-green-100 text-green-800'
-            : 'bg-red-100 text-red-800'
-        }`}
-      >
-        {row.original.status}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'owner.name',
-    header: 'Owner',
-  },
-  {
-    accessorKey: 'owner.role',
-    header: 'Role',
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Created At',
-  },
-  {
-    accessorKey: 'lastTransaction',
-    header: 'Last Transaction',
-  },
-  {
-    id: 'actions',
-    cell: ({ row }) => {
-      const [isOpen, setIsOpen] = useState(false);
-      const dropdownRef = useRef<HTMLDivElement>(null);
-
-      useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-          if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-            setIsOpen(false);
-          }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-      }, []);
-
-      return (
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="inline-flex w-full justify-center rounded-md p-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#1C39BB] focus:ring-offset-2 focus:ring-offset-gray-100"
-          >
-            <EllipsisVerticalIcon className="h-5 w-5" aria-hidden="true" />
-          </button>
-          {isOpen && (
-            <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transition-all duration-100 ease-in-out">
-              <div className="py-1">
-                <button
-                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  View Details
-                </button>
-                <button
-                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Edit Account
-                </button>
-                <button
-                  className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                >
-                  Delete Account
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    },
-  },
-];
-
-interface AccountTableProps {
+export interface AccountTableProps {
   onNewAccount: () => void;
 }
 
 export default function AccountTable({ onNewAccount }: AccountTableProps) {
+  const { accounts, setAccounts } = useDataStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const data = await accountService.getAccounts();
+        setAccounts(data);
+      } catch (error) {
+        console.error('Error fetching accounts:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAccounts();
+  }, [setAccounts]);
+
+  const handleDeleteAccount = async (account: Account) => {
+    try {
+      await accountService.deleteAccount(account.id);
+      setAccounts(accounts.filter((a: Account) => a.id !== account.id));
+    } catch (error) {
+      console.error('Error deleting account:', error);
+    }
+  };
+
+  const handleUpdateStatus = async (accountId: string, status: Account['status']) => {
+    try {
+      const updatedAccount = await accountService.updateAccountStatus(accountId, status);
+      setAccounts(accounts.map((account: Account) => 
+        account.id === accountId ? updatedAccount : account
+      ));
+    } catch (error) {
+      console.error('Error updating account status:', error);
+    }
+  };
+
+  const columns: ColumnDef<Account>[] = [
+    {
+      accessorKey: 'userName',
+      header: 'User',
+    },
+    {
+      accessorKey: 'type',
+      header: 'Type',
+      cell: ({ row }) => (
+        <span className="capitalize">{row.original.type}</span>
+      ),
+    },
+    {
+      accessorKey: 'balance',
+      header: 'Balance',
+      cell: ({ row }) => (
+        <span className="font-medium">
+          ${row.original.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+            row.original.status === 'active'
+              ? 'bg-green-100 text-green-800'
+              : row.original.status === 'inactive'
+              ? 'bg-yellow-100 text-yellow-800'
+              : 'bg-red-100 text-red-800'
+          }`}
+        >
+          {row.original.status}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Created At',
+      cell: ({ row }) => (
+        <span>{new Date(row.original.createdAt).toLocaleDateString()}</span>
+      ),
+    },
+    {
+      accessorKey: 'updatedAt',
+      header: 'Updated At',
+      cell: ({ row }) => (
+        <span>{new Date(row.original.updatedAt).toLocaleDateString()}</span>
+      ),
+    },
+  ];
 
   const table = useReactTable({
-    data: sampleAccounts,
+    data: accounts,
     columns,
     state: {
       sorting,
@@ -204,7 +149,7 @@ export default function AccountTable({ onNewAccount }: AccountTableProps) {
   });
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden h-full flex flex-col">
+    <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="relative flex-1 max-w-sm">
@@ -229,7 +174,7 @@ export default function AccountTable({ onNewAccount }: AccountTableProps) {
               onClick={() => {
                 const allVisible = table.getAllColumns().every((col) => col.getIsVisible());
                 table.getAllColumns().forEach((col) => {
-                  if (col.id !== 'accountName') {
+                  if (col.id !== 'userName') {
                     col.toggleVisibility(!allVisible);
                   }
                 });
@@ -246,7 +191,7 @@ export default function AccountTable({ onNewAccount }: AccountTableProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (

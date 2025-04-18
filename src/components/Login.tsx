@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import { useUIStore } from '@/store/uiStore';
 
 interface LoginFormData {
   email: string;
@@ -10,13 +12,19 @@ interface LoginFormData {
 
 export default function Login() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
   });
-
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuthStore();
+  const { addNotification } = useUIStore();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -57,18 +65,21 @@ export default function Login() {
     
     if (validateForm()) {
       setIsLoading(true);
-      
+
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Set the authentication cookie
-        document.cookie = 'isAuthenticated=true; path=/; max-age=86400'; // 24 hours
-        
-        // Redirect to dashboard
+        await login(formData.email, formData.password);
+        addNotification({
+          type: 'success',
+          message: 'Login successful!',
+          duration: 3000,
+        });
         router.push('/dashboard');
       } catch (error) {
-        console.error('Login failed:', error);
+        addNotification({
+          type: 'error',
+          message: 'Invalid credentials. Please try again.',
+          duration: 3000,
+        });
         setErrors({ email: 'Invalid credentials' });
       } finally {
         setIsLoading(false);
@@ -76,8 +87,12 @@ export default function Login() {
     }
   };
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg border border-[#1C39BB]/10">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-[#1C39BB]">

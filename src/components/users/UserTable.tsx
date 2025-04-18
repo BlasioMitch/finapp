@@ -24,46 +24,22 @@ import {
   MagnifyingGlassIcon,
   PlusIcon,
   EllipsisVerticalIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 import UserForm from './UserForm';
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'manager' | 'user';
-  status: 'active' | 'inactive';
-  lastLogin: string;
-  joinDate: string;
-};
-
-const sampleUsers: User[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'admin',
-    status: 'active',
-    lastLogin: '2024-03-15 14:30',
-    joinDate: '2023-01-15',
-  },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    role: 'manager',
-    status: 'active',
-    lastLogin: '2024-03-14 09:15',
-    joinDate: '2023-02-20',
-  },
-  // Add more sample users as needed
-];
+import { useDataStore } from '@/store/dataStore';
+import { User } from '@/types';
+import userService from '@/services/user.service';
 
 interface UserTableProps {
   onNewUser: () => void;
 }
 
 export default function UserTable({ onNewUser }: UserTableProps) {
+  const { users, setUsers } = useDataStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -71,6 +47,22 @@ export default function UserTable({ onNewUser }: UserTableProps) {
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
   const [formMode, setFormMode] = useState<'view' | 'edit'>('view');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const data = await userService.getUsers();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [setUsers]);
 
   const handleViewUser = (user: User) => {
     setSelectedUser(user);
@@ -84,9 +76,35 @@ export default function UserTable({ onNewUser }: UserTableProps) {
     setIsFormOpen(true);
   };
 
-  const handleDeleteUser = (user: User) => {
-    // TODO: Implement delete functionality
-    console.log('Delete user:', user);
+  const handleDeleteUser = async (user: User) => {
+    try {
+      await userService.deleteUser(user.id);
+      setUsers(users.filter(u => u.id !== user.id));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+  };
+
+  const handleUpdateStatus = async (userId: string, status: User['status']) => {
+    try {
+      const updatedUser = await userService.updateUserStatus(userId, status);
+      setUsers(users.map(user => 
+        user.id === userId ? updatedUser : user
+      ));
+    } catch (error) {
+      console.error('Error updating user status:', error);
+    }
+  };
+
+  const handleUpdateRole = async (userId: string, role: User['role']) => {
+    try {
+      const updatedUser = await userService.updateUserRole(userId, role);
+      setUsers(users.map(user => 
+        user.id === userId ? updatedUser : user
+      ));
+    } catch (error) {
+      console.error('Error updating user role:', error);
+    }
   };
 
   const handleFormSubmit = (user: User) => {
@@ -204,7 +222,7 @@ export default function UserTable({ onNewUser }: UserTableProps) {
   ];
 
   const table = useReactTable({
-    data: sampleUsers,
+    data: users,
     columns,
     state: {
       sorting,

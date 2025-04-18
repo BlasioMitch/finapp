@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,7 +13,9 @@ import {
   SortingState,
   VisibilityState,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useDataStore } from '@/store/dataStore';
+import { Transaction } from '@/types';
+import transactionService from '@/services/transaction.service';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -23,53 +26,38 @@ import {
   EyeSlashIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 
-export interface Transaction {
-  id: string;
-  accountId: string;
-  accountName: string;
-  type: 'loan_payment' | 'membership_fee' | 'savings_deposit' | 'account_withdraw' | 'closure_withdraw';
-  amount: number;
-  date: string;
-  status: 'completed' | 'pending' | 'failed';
-  reference: string;
-}
-
-const sampleTransactions: Transaction[] = [
-  {
-    id: '1',
-    accountId: 'ACC001',
-    accountName: 'John Doe',
-    type: 'loan_payment',
-    amount: 1500,
-    date: '2024-03-15',
-    status: 'completed',
-    reference: 'LP-2024-001'
-  },
-  {
-    id: '2',
-    accountId: 'ACC002',
-    accountName: 'Jane Smith',
-    type: 'savings_deposit',
-    amount: 2000,
-    date: '2024-03-14',
-    status: 'completed',
-    reference: 'SD-2024-001'
-  },
-  // Add more sample transactions as needed
-];
-
-interface TransactionTableProps {
-  transactions: Transaction[];
+export interface TransactionTableProps {
   onNewTransaction: () => void;
 }
 
-export default function TransactionTable({ transactions, onNewTransaction }: TransactionTableProps) {
+export default function TransactionTable({ onNewTransaction }: TransactionTableProps) {
+  const { transactions, setTransactions } = useDataStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const data = await transactionService.getTransactions();
+        setTransactions(data);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [setTransactions]);
 
   const columns: ColumnDef<Transaction>[] = [
     {
@@ -149,6 +137,26 @@ export default function TransactionTable({ transactions, onNewTransaction }: Tra
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+
+  const handleDeleteTransaction = async (transaction: Transaction) => {
+    try {
+      await transactionService.deleteTransaction(transaction.id);
+      setTransactions(transactions.filter((t: Transaction) => t.id !== transaction.id));
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+    }
+  };
+
+  const handleUpdateStatus = async (transactionId: string, status: Transaction['status']) => {
+    try {
+      const updatedTransaction = await transactionService.updateTransactionStatus(transactionId, status);
+      setTransactions(transactions.map((transaction: Transaction) => 
+        transaction.id === transactionId ? updatedTransaction : transaction
+      ));
+    } catch (error) {
+      console.error('Error updating transaction status:', error);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">

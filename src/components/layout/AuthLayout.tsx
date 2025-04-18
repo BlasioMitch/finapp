@@ -1,36 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import AdminLayout from './AdminLayout';
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 
 export default function AuthLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isAuth = document.cookie.includes('isAuthenticated=true');
-      setIsAuthenticated(isAuth);
-    };
+    // If not authenticated and trying to access protected routes
+    if (!isAuthenticated && pathname !== '/login') {
+      router.push('/login');
+      return;
+    }
+    // If authenticated and trying to access login page
+    if (isAuthenticated && pathname === '/login') {
+      router.push('/dashboard');
+      return;
+    }
+  }, [isAuthenticated, pathname, router]);
 
-    checkAuth();
-    // Check auth state when pathname changes
-    const interval = setInterval(checkAuth, 1000);
-    return () => clearInterval(interval);
-  }, [pathname]);
-
+  // For login page, just render the children
   if (pathname === '/login') {
     return <>{children}</>;
   }
 
-  return isAuthenticated ? (
-    <AdminLayout>{children}</AdminLayout>
-  ) : (
-    <>{children}</>
-  );
+  // For protected routes, check authentication
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // For authenticated users, render the children (which should already be wrapped in AdminLayout)
+  return <>{children}</>;
 } 

@@ -98,34 +98,43 @@ export default function LoansPage() {
         <h3 className="text-lg font-medium text-gray-900 mb-4">Loan Distribution by Type</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            {Object.entries(loanStats.loanDistribution).map(([type, count]) => (
+            {Object.entries(loanStats.loanDistribution).map(([type, percentage]) => (
               <div key={type} className="flex items-center">
-                <div className="w-24 text-sm text-gray-500">{type}</div>
-                <div className="flex-1">
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#1C39BB] rounded-full"
-                      style={{ width: `${(count / 100) * 100}%` }}
-                    />
-                  </div>
+                <div className="w-24 text-sm font-medium text-gray-500">{type}</div>
+                <div className="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#1C39BB]"
+                    style={{ width: `${percentage}%` }}
+                  />
                 </div>
-                <div className="w-12 text-right text-sm font-medium text-gray-900">{count}%</div>
+                <div className="w-12 text-right text-sm font-medium text-gray-900">
+                  {percentage}%
+                </div>
               </div>
             ))}
-          </div>
-          <div className="flex items-center justify-center">
-            <div className="w-48 h-48 rounded-full border-8 border-[#1C39BB] flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-[#1C39BB]">{loanStats.activeLoans}</div>
-                <div className="text-sm text-gray-500">Active Loans</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Loan Table */}
-      <LoanTable />
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:px-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Active Loans</h3>
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#1C39BB] hover:bg-[#1C39BB]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1C39BB]"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              New Loan
+            </button>
+          </div>
+        </div>
+        <div className="border-t border-gray-200">
+          <LoanTable />
+        </div>
+      </div>
 
       {/* Create Loan Modal */}
       <CreateLoan

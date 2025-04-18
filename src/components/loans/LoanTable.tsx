@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,7 +13,8 @@ import {
   SortingState,
   VisibilityState,
 } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useDataStore } from '@/store/dataStore';
+import { Loan } from '@/types';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -22,65 +24,16 @@ import {
   EyeIcon,
   EyeSlashIcon,
   MagnifyingGlassIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import PaymentHistory from './PaymentHistory';
 
-export interface Loan {
-  id: string;
-  borrower: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  amount: number;
-  interestRate: number;
-  term: number;
-  status: 'active' | 'paid' | 'defaulted';
-  startDate: string;
-  endDate: string;
-  monthlyPayment: number;
-  totalInterest: number;
-  remainingBalance: number;
+export interface LoanTableProps {
+  onNewLoan: (loan: Loan) => void;
 }
 
-const sampleLoans: Loan[] = [
-  {
-    id: '1',
-    borrower: {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-    },
-    amount: 50000,
-    interestRate: 5.5,
-    term: 36,
-    status: 'active',
-    startDate: '2024-01-15',
-    endDate: '2027-01-15',
-    monthlyPayment: 1510.16,
-    totalInterest: 4365.76,
-    remainingBalance: 50000,
-  },
-  {
-    id: '2',
-    borrower: {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-    },
-    amount: 75000,
-    interestRate: 6.0,
-    term: 60,
-    status: 'active',
-    startDate: '2024-02-01',
-    endDate: '2029-02-01',
-    monthlyPayment: 1449.99,
-    totalInterest: 11999.40,
-    remainingBalance: 75000,
-  },
-];
-
-export default function LoanTable() {
+export default function LoanTable({ onNewLoan }: LoanTableProps) {
+  const { loans, deleteLoan } = useDataStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -93,27 +46,25 @@ export default function LoanTable() {
     setIsPaymentHistoryOpen(true);
   };
 
+  const handleDeleteLoan = (loan: Loan) => {
+    deleteLoan(loan.id);
+  };
+
   const columns: ColumnDef<Loan>[] = [
     {
-      accessorKey: 'borrower.name',
+      accessorKey: 'borrower',
       header: 'Borrower',
       cell: ({ row }) => (
-        <div className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-[#1C39BB] flex items-center justify-center text-white text-sm font-semibold mr-2">
-            {row.original.borrower.name.split(' ').map(n => n[0]).join('')}
-          </div>
-          <div>
-            <div className="font-medium text-gray-900">{row.original.borrower.name}</div>
-            <div className="text-sm text-gray-500">{row.original.borrower.email}</div>
-          </div>
+        <div className="flex flex-col">
+          <span className="font-medium">{row.original.borrower}</span>
         </div>
       ),
     },
     {
       accessorKey: 'amount',
-      header: 'Loan Amount',
+      header: 'Amount',
       cell: ({ row }) => (
-        <div className="text-gray-900">
+        <div className="text-right">
           ${row.original.amount.toLocaleString()}
         </div>
       ),
@@ -122,30 +73,17 @@ export default function LoanTable() {
       accessorKey: 'interestRate',
       header: 'Interest Rate',
       cell: ({ row }) => (
-        <div className="text-gray-900">
+        <div className="text-right">
           {row.original.interestRate}%
         </div>
       ),
     },
     {
       accessorKey: 'term',
-      header: 'Term (months)',
-    },
-    {
-      accessorKey: 'monthlyPayment',
-      header: 'Monthly Payment',
+      header: 'Term',
       cell: ({ row }) => (
-        <div className="text-gray-900">
-          ${row.original.monthlyPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'remainingBalance',
-      header: 'Remaining Balance',
-      cell: ({ row }) => (
-        <div className="text-gray-900">
-          ${row.original.remainingBalance.toLocaleString()}
+        <div className="text-right">
+          {row.original.term} months
         </div>
       ),
     },
@@ -153,31 +91,84 @@ export default function LoanTable() {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-            row.original.status === 'active'
-              ? 'bg-green-100 text-green-800'
-              : row.original.status === 'paid'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-red-100 text-red-800'
-          }`}
-        >
-          {row.original.status.charAt(0).toUpperCase() + row.original.status.slice(1)}
-        </span>
+        <div className="flex items-center">
+          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+            row.original.status === 'active' ? 'bg-green-500' :
+            row.original.status === 'paid' ? 'bg-blue-500' :
+            'bg-red-500'
+          }`} />
+          <span className="capitalize">{row.original.status}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'monthlyPayment',
+      header: 'Monthly Payment',
+      cell: ({ row }) => (
+        <div className="text-right">
+          ${row.original.monthlyPayment.toLocaleString()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'totalInterest',
+      header: 'Total Interest',
+      cell: ({ row }) => (
+        <div className="text-right">
+          ${row.original.totalInterest.toLocaleString()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'remainingBalance',
+      header: 'Remaining Balance',
+      cell: ({ row }) => (
+        <div className="text-right">
+          ${row.original.remainingBalance.toLocaleString()}
+        </div>
       ),
     },
     {
       accessorKey: 'startDate',
       header: 'Start Date',
+      cell: ({ row }) => (
+        <div>
+          {new Date(row.original.startDate).toLocaleDateString()}
+        </div>
+      ),
     },
     {
       accessorKey: 'endDate',
       header: 'End Date',
+      cell: ({ row }) => (
+        <div>
+          {new Date(row.original.endDate).toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handleRowClick(row.original)}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            View History
+          </button>
+          <button
+            onClick={() => handleDeleteLoan(row.original)}
+            className="text-red-600 hover:text-red-800"
+          >
+            Delete
+          </button>
+        </div>
+      ),
     },
   ];
 
   const table = useReactTable({
-    data: sampleLoans,
+    data: loans,
     columns,
     state: {
       sorting,
@@ -214,7 +205,7 @@ export default function LoanTable() {
               onClick={() => {
                 const allVisible = table.getAllColumns().every((col) => col.getIsVisible());
                 table.getAllColumns().forEach((col) => {
-                  if (col.id !== 'borrower.name') {
+                  if (col.id !== 'borrower') {
                     col.toggleVisibility(!allVisible);
                   }
                 });
