@@ -1,12 +1,19 @@
 import { create } from 'zustand';
 import { Transaction, User, Account, Loan } from '@/types';
+import { userApi } from '@/services/api/userApi';
+import accountService from '@/services/account.service';
+import transactionService from '@/services/transaction.service';
+import loanService from '@/services/loan.service';
 
 interface DataState {
   // Users
   users: User[];
-  addUser: (user: User) => void;
-  updateUser: (user: User) => void;
-  deleteUser: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  fetchUsers: () => Promise<void>;
+  createUser: (userData: Omit<User, 'id' | 'lastLogin' | 'joinDate'>) => Promise<void>;
+  updateUser: (id: string, userData: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
   setUsers: (users: User[]) => void;
 
   // Transactions
@@ -31,26 +38,59 @@ interface DataState {
   setLoans: (loans: Loan[]) => void;
 }
 
-export const useDataStore = create<DataState>((set) => ({
+export const useDataStore = create<DataState>((set, get) => ({
   // Users
   users: [],
-  addUser: (user) => set((state) => ({ users: [...state.users, user] })),
-  updateUser: (user) =>
-    set((state) => ({
-      users: state.users.map((u) => (u.id === user.id ? user : u)),
-    })),
-  deleteUser: (id) =>
-    set((state) => ({
-      users: state.users.filter((u) => u.id !== id),
-    })),
+  loading: false,
+  error: null,
+  fetchUsers: async () => {
+    set({ loading: true, error: null });
+    try {
+      const users = await userApi.getUsers();
+      set({ users, loading: false });
+    } catch (error) {
+      set({ error: 'Failed to fetch users', loading: false });
+    }
+  },
+  createUser: async (userData) => {
+    set({ loading: true, error: null });
+    try {
+      const newUser = await userApi.createUser(userData);
+      set((state) => ({ users: [...state.users, newUser], loading: false }));
+    } catch (error) {
+      set({ error: 'Failed to create user', loading: false });
+    }
+  },
+  updateUser: async (id, userData) => {
+    set({ loading: true, error: null });
+    try {
+      const updatedUser = await userApi.updateUser(id, userData);
+      set((state) => ({
+        users: state.users.map((user) => (user.id === id ? updatedUser : user)),
+        loading: false,
+      }));
+    } catch (error) {
+      set({ error: 'Failed to update user', loading: false });
+    }
+  },
+  deleteUser: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      await userApi.deleteUser(id);
+      set((state) => ({
+        users: state.users.filter((user) => user.id !== id),
+        loading: false,
+      }));
+    } catch (error) {
+      set({ error: 'Failed to delete user', loading: false });
+    }
+  },
   setUsers: (users) => set({ users }),
 
   // Transactions
   transactions: [],
   addTransaction: (transaction) =>
-    set((state) => ({
-      transactions: [...state.transactions, transaction],
-    })),
+    set((state) => ({ transactions: [...state.transactions, transaction] })),
   updateTransaction: (transaction) =>
     set((state) => ({
       transactions: state.transactions.map((t) =>
@@ -66,9 +106,7 @@ export const useDataStore = create<DataState>((set) => ({
   // Accounts
   accounts: [],
   addAccount: (account) =>
-    set((state) => ({
-      accounts: [...state.accounts, account],
-    })),
+    set((state) => ({ accounts: [...state.accounts, account] })),
   updateAccount: (account) =>
     set((state) => ({
       accounts: state.accounts.map((a) => (a.id === account.id ? account : a)),
@@ -81,10 +119,7 @@ export const useDataStore = create<DataState>((set) => ({
 
   // Loans
   loans: [],
-  addLoan: (loan) =>
-    set((state) => ({
-      loans: [...state.loans, loan],
-    })),
+  addLoan: (loan) => set((state) => ({ loans: [...state.loans, loan] })),
   updateLoan: (loan) =>
     set((state) => ({
       loans: state.loans.map((l) => (l.id === loan.id ? loan : l)),

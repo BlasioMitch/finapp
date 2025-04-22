@@ -1,4 +1,6 @@
 import api from '@/lib/axios';
+import { User } from '@/types';
+import Cookies from 'js-cookie';
 
 export interface LoginCredentials {
   email: string;
@@ -12,36 +14,43 @@ export interface RegisterData extends LoginCredentials {
 export interface AuthResponse {
   token: string;
   refreshToken: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
+  user: User;
 }
 
 const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    const response = await api.post<AuthResponse>('/login', credentials);
+    const { token, refreshToken, user } = response.data;
+    
+    // Set the token cookie
+    Cookies.set('token', token, { 
+      expires: 7, // 7 days
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    
     return response.data;
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/register', data);
+    const response = await api.post<AuthResponse>('/register', data);
     return response.data;
   },
 
   async refreshToken(refreshToken: string): Promise<{ token: string }> {
-    const response = await api.post<{ token: string }>('/auth/refresh', { refreshToken });
+    const response = await api.post<{ token: string }>('/refresh', { refreshToken });
     return response.data;
   },
 
   async logout(): Promise<void> {
-    await api.post('/auth/logout');
+    await api.post('/logout');
+    // Remove the token cookie
+    Cookies.remove('token', { path: '/' });
   },
 
-  async getProfile(): Promise<AuthResponse['user']> {
-    const response = await api.get<AuthResponse['user']>('/auth/profile');
+  async getProfile(): Promise<User> {
+    const response = await api.get<User>('/profile');
     return response.data;
   },
 };

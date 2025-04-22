@@ -1,74 +1,35 @@
+import api from '@/lib/axios';
 import { Account } from '@/types';
 
-class AccountService {
-  private baseUrl = '/api/accounts';
-
+const accountService = {
   async getAccounts(): Promise<Account[]> {
-    const response = await fetch(this.baseUrl);
-    if (!response.ok) {
-      throw new Error('Failed to fetch accounts');
-    }
-    return response.json();
-  }
+    const response = await api.get<Account[]>('/accounts');
+    return response.data;
+  },
 
   async getAccount(id: string): Promise<Account> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch account');
-    }
-    return response.json();
-  }
+    const response = await api.get<Account>(`/accounts/${id}`);
+    return response.data;
+  },
 
   async createAccount(account: Omit<Account, 'id'>): Promise<Account> {
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(account),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create account');
-    }
-    return response.json();
-  }
+    const response = await api.post<Account>('/accounts', account);
+    return response.data;
+  },
 
   async updateAccount(id: string, account: Partial<Account>): Promise<Account> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(account),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update account');
-    }
-    return response.json();
-  }
+    const response = await api.put<Account>(`/accounts/${id}`, account);
+    return response.data;
+  },
 
   async deleteAccount(id: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete account');
-    }
-  }
+    await api.delete(`/accounts/${id}`);
+  },
 
   async updateAccountStatus(id: string, status: Account['status']): Promise<Account> {
-    const response = await fetch(`${this.baseUrl}/${id}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ status }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update account status');
-    }
-    return response.json();
+    const response = await api.patch<Account>(`/accounts/${id}/status`, { status });
+    return response.data;
   }
-}
+};
 
-export default new AccountService(); 
+export default accountService; 

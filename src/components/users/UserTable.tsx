@@ -32,14 +32,14 @@ import {
 import UserForm from './UserForm';
 import { useDataStore } from '@/store/dataStore';
 import { User } from '@/types';
-import userService from '@/services/user.service';
+import { userApi } from '@/services/api/userApi';
 
 interface UserTableProps {
   onNewUser: () => void;
 }
 
 export default function UserTable({ onNewUser }: UserTableProps) {
-  const { users, setUsers } = useDataStore();
+  const { users, loading, error, fetchUsers, deleteUser } = useDataStore();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -47,22 +47,6 @@ export default function UserTable({ onNewUser }: UserTableProps) {
   const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
   const [formMode, setFormMode] = useState<'view' | 'edit'>('view');
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await userService.getUsers();
-        setUsers(data);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, [setUsers]);
 
   const handleViewUser = (user: User) => {
     setSelectedUser(user);
@@ -77,20 +61,20 @@ export default function UserTable({ onNewUser }: UserTableProps) {
   };
 
   const handleDeleteUser = async (user: User) => {
-    try {
-      await userService.deleteUser(user.id);
-      setUsers(users.filter(u => u.id !== user.id));
-    } catch (error) {
-      console.error('Error deleting user:', error);
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await userApi.deleteUser(user.id);
+        await fetchUsers();
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+      }
     }
   };
 
   const handleUpdateStatus = async (userId: string, status: User['status']) => {
     try {
-      const updatedUser = await userService.updateUserStatus(userId, status);
-      setUsers(users.map(user => 
-        user.id === userId ? updatedUser : user
-      ));
+      const updatedUser = await userApi.updateUser(userId, { status });
+      await fetchUsers();
     } catch (error) {
       console.error('Error updating user status:', error);
     }
@@ -98,10 +82,8 @@ export default function UserTable({ onNewUser }: UserTableProps) {
 
   const handleUpdateRole = async (userId: string, role: User['role']) => {
     try {
-      const updatedUser = await userService.updateUserRole(userId, role);
-      setUsers(users.map(user => 
-        user.id === userId ? updatedUser : user
-      ));
+      const updatedUser = await userApi.updateUser(userId, { role });
+      await fetchUsers();
     } catch (error) {
       console.error('Error updating user role:', error);
     }

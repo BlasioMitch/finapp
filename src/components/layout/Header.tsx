@@ -3,15 +3,32 @@
 import { BellIcon, MagnifyingGlassIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
+import authService from '@/services/auth.service';
+import { useUIStore } from '@/store/uiStore';
 
 export default function Header() {
   const router = useRouter();
+  const { user, logout } = useAuthStore();
+  const { addNotification } = useUIStore();
 
-  const handleLogout = () => {
-    // Remove the authentication cookie
-    document.cookie = 'isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    // Redirect to login page
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      await logout();
+      addNotification({
+        type: 'success',
+        message: 'Successfully logged out',
+        duration: 3000
+      });
+      router.push('/login');
+    } catch (error: any) {
+      addNotification({
+        type: 'error',
+        message: error?.message || 'Failed to logout. Please try again.',
+        duration: 5000
+      });
+    }
   };
 
   const getInitials = (name: string) => {
@@ -44,17 +61,19 @@ export default function Header() {
             <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
           </button>
 
-          <div className="flex items-center space-x-3">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-[#1C39BB] flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">
-                {getInitials('John Doe')}
-              </span>
+          {user && (
+            <div className="flex items-center space-x-3">
+              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-[#1C39BB] flex items-center justify-center">
+                <span className="text-white font-semibold text-sm">
+                  {getInitials(user.name)}
+                </span>
+              </div>
+              <div className="hidden md:block">
+                <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                <div className="text-xs text-gray-500 capitalize">{user.role}</div>
+              </div>
             </div>
-            <div className="hidden md:block">
-              <div className="text-sm font-medium text-gray-900">John Doe</div>
-              <div className="text-xs text-gray-500">Admin</div>
-            </div>
-          </div>
+          )}
 
           <button
             onClick={handleLogout}

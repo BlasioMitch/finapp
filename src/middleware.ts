@@ -2,19 +2,19 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const isAuthenticated = request.cookies.has('isAuthenticated');
+  const token = request.cookies.get('token')?.value;
   const isLoginPage = request.nextUrl.pathname === '/login';
 
   // If user is not authenticated and trying to access protected routes
-  if (!isAuthenticated && !isLoginPage) {
+  if (!token && !isLoginPage) {
     const response = NextResponse.redirect(new URL('/login', request.url));
+    response.cookies.delete('token');
     return response;
   }
 
   // If user is authenticated and trying to access login page
-  if (isAuthenticated && isLoginPage) {
-    const response = NextResponse.redirect(new URL('/dashboard', request.url));
-    return response;
+  if (token && isLoginPage) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return NextResponse.next();

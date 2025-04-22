@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  SAVINGS
+  CHECKING
+  LOAN
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TransactionType {
+  LOAN_PAYMENT
+  MEMBERSHIP_FEE
+  SAVINGS_DEPOSIT
+  ACCOUNT_WITHDRAW
+  CLOSURE_WITHDRAW
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  FAILED
+}
+
+enum LoanStatus {
+  ACTIVE
+  PAID
+  DEFAULTED
+}
+
+enum PaymentStatus {
+  COMPLETED
+  PENDING
+  FAILED
+}
+
+model Account {
+  id           String        @id @default(uuid())
+  userId       String
+  userName     String
+  type         AccountType
+  balance      Float         @default(0)
+  status       AccountStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  password  String
+  role      UserRole   @default(USER)
+  status    UserStatus @default(ACTIVE)
+  lastLogin DateTime?
+  joinDate  DateTime   @default(now())
+  accounts  Account[]
+  loans     Loan[]     @relation("Borrower")
+  payments  Payment[]  @relation("Payer")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  accountId   String
+  accountName String
+  type        TransactionType
+  amount      Float
+  date        DateTime          @default(now())
+  status      TransactionStatus @default(PENDING)
+  reference   String?
+  account     Account           @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+}
+
+model Loan {
+  id               String     @id @default(cuid())
+  borrower         User       @relation("Borrower", fields: [borrowerId], references: [id])
+  borrowerId       String
+  amount           Float
+  interestRate     Float
+  term             Int
+  status           LoanStatus @default(ACTIVE)
+  monthlyPayment   Float
+  totalInterest    Float
+  remainingBalance Float
+  startDate        DateTime
+  endDate          DateTime
+  payments         Payment[]
+}
+
+model Payment {
+  id      String        @id @default(cuid())
+  loan    Loan          @relation(fields: [loanId], references: [id])
+  loanId  String
+  payer   User          @relation("Payer", fields: [payerId], references: [id])
+  payerId String
+  amount  Float
+  status  PaymentStatus @default(COMPLETED)
+  date    DateTime      @default(now())
+}
